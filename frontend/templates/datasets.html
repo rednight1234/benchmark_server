@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}数据集浏览{% endblock %}
+{% block content %}
+<h1>📊 数据集浏览</h1>
+
+<!-- 数据集卡片列表 -->
+<div id="dataset-cards" class="card-grid"></div>
+
+<!-- 数据集详情面板（点击卡片显示） -->
+<div id="dataset-detail" class="section" style="display:none;">
+    <button id="back-btn">← 返回列表</button>
+    <h2 id="detail-title"></h2>
+    <p id="detail-desc"></p>
+    <div id="rep-tabs" class="tabs"></div>
+    <div id="cell-list" class="cell-grid"></div>
+</div>
+
+<!-- 文件列表弹出层 -->
+<div id="file-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 id="file-modal-title"></h3>
+        <ul id="file-list"></ul>
+    </div>
+</div>
+
+<script src="/static/js/datasets.js"></script>
+{% endblock %}

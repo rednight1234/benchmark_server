@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 基因组结构重建</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .section { background: #f5f5f5; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        .section h3 { margin-top: 0; }
+        label { display: inline-block; min-width: 100px; margin: 5px 0; }
+        select, input[type="number"], input[type="text"] { padding: 4px; margin: 5px 0; }
+        button { padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .progress-container { background: #e0e0e0; border-radius: 4px; margin: 10px 0; display: none; }
+        .progress-bar { height: 24px; background: #4CAF50; width: 0%; border-radius: 4px; text-align: center; color: white; line-height: 24px; }
+        #preprocess-files { display: none; margin-top: 10px; }
+        #preprocess-files ul { list-style: none; padding: 0; }
+        #preprocess-files li { padding: 4px; margin: 2px; background: #fff; border-radius: 3px; cursor: pointer; }
+        #preprocess-files li.selected { background: #d4edda; }
+        #stats-panel { display: none; background: #e8f4f8; padding: 10px; margin-top: 10px; border-radius: 4px; }
+        #stats-panel table { width: 100%; border-collapse: collapse; }
+        #stats-panel td { border: 1px solid #ccc; padding: 4px 8px; }
+        #reconstruct-section { display: none; }
+    </style>
+</head>
+<body>
+    <h1>🧬 3D 基因组结构重建</h1>
+
+    <!-- 步骤1: 选择数据集和细胞 -->
+    <div class="section" id="data-section">
+        <h3>1. 选择数据</h3>
+        <label>数据集：</label>
+        <select id="dataset-select">
+            <option value="">-- 请选择 --</option>
+        </select>
+        <br>
+        <label>重复类型：</label>
+        <select id="rep-select" disabled>
+            <option value="">-- 请先选数据集 --</option>
+        </select>
+        <br>
+        <label>细胞ID：</label>
+        <select id="cell-select" disabled>
+            <option value="">-- 请先选重复类型 --</option>
+        </select>
+    </div>
+
+    <!-- 步骤2: 预处理 -->
+    <div class="section" id="preprocess-section">
+        <h3>2. 数据预处理</h3>
+        <label>染色体：</label>
+        <input type="text" id="pre-chrom" value="chr19" size="8">
+        <label>起始(bp)：</label>
+        <input type="number" id="pre-start" value="0" size="12">
+        <label>结束(bp)：</label>
+        <input type="number" id="pre-end" value="-1" size="12">
+        <label>分辨率(bp)：</label>
+        <input type="number" id="pre-resolution" value="20000" size="12">
+        <br>
+        <button id="preprocess-btn" disabled>开始预处理</button>
+        <button id="stop-preprocess-btn" style="display:none;">停止</button>
+
+        <div id="preprocess-progress" class="progress-container">
+            <div id="preprocess-progress-bar" class="progress-bar">0%</div>
+            <p id="preprocess-message"></p>
+        </div>
+
+        <div id="preprocess-files">
+            <h4>生成的文件（点击选择用于推理）</h4>
+            <ul id="file-list"></ul>
+        </div>
+    </div>
+
+    <!-- 步骤3: 推理 -->
+    <div class="section" id="reconstruct-section">
+        <h3>3. 3D 结构重建</h3>
+        <label>模型：</label>
+        <select id="model-select">
+            <option value="tensorflamingo">FLAMINGO</option>
+            <option value="sic">Si‑C</option>
+            <option value="example">Example Model</option>
+        </select>
+        <br>
+        <label>分辨率(bp)：</label>
+        <input type="number" id="inf-resolution" value="20000">
+        <label>染色体：</label>
+        <input type="text" id="inf-chrom" value="chr19">
+        <label>基因组：</label>
+        <select id="assembly-select">
+            <option value="hg19">hg19</option>
+            <option value="hg38">hg38</option>
+        </select>
+        <br>
+        <button id="reconstruct-btn" disabled>提交推理任务</button>
+
+        <div id="stats-panel"></div>
+
+        <div id="inference-progress" class="progress-container">
+            <div id="inference-progress-bar" class="progress-bar">0%</div>
+            <p id="inference-message"></p>
+        </div>
+
+        <div id="evaluate-section" style="display:none; margin-top:10px;">
+            <button id="evaluate-btn">📊 计算评分</button>
+            <div id="evaluate-results"></div>
+        </div>
+        <div id="visualize-section" style="display:none; margin-top:10px;">
+            <button id="visualize-btn">🔍 查看3D结构</button>
+            <div id="visualize-results" style="margin-top:10px;">
+                <img id="visualize-img" src="" style="max-width:100%; display:none;">
+                <a id="visualize-download" href="#" download="3d_structure.png" style="display:none;">📥 下载图片</a>
+            </div>
+        </div>
+        <div id="download-section" style="display:none;">
+            <a id="download-link" href="#">📥 下载结果文件</a>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 元素引用 ====================
+        const datasetSelect = document.getElementById('dataset-select');
+        const repSelect = document.getElementById('rep-select');
+        const cellSelect = document.getElementById('cell-select');
+        const preprocessBtn = document.getElementById('preprocess-btn');
+        const stopPreBtn = document.getElementById('stop-preprocess-btn');
+        const preprocessProgress = document.getElementById('preprocess-progress');
+        const preprocessBar = document.getElementById('preprocess-progress-bar');
+        const preprocessMessage = document.getElementById('preprocess-message');
+        const fileListDiv = document.getElementById('preprocess-files');
+        const fileList = document.getElementById('file-list');
+        const reconstructSection = document.getElementById('reconstruct-section');
+        const reconstructBtn = document.getElementById('reconstruct-btn');
+        const statsPanel = document.getElementById('stats-panel');
+        const inferenceProgress = document.getElementById('inference-progress');
+        const inferenceBar = document.getElementById('inference-progress-bar');
+        const inferenceMessage = document.getElementById('inference-message');
+        const downloadSection = document.getElementById('download-section');
+        const downloadLink = document.getElementById('download-link');
+
+        const preChrom = document.getElementById('pre-chrom');
+        const preStart = document.getElementById('pre-start');
+        const preEnd = document.getElementById('pre-end');
+        const preResolution = document.getElementById('pre-resolution');
+        const infResolution = document.getElementById('inf-resolution');
+        const infChrom = document.getElementById('inf-chrom');
+        const modelSelect = document.getElementById('model-select');
+        const assemblySelect = document.getElementById('assembly-select');
+        const evaluateSection = document.getElementById('evaluate-section');
+        const evaluateBtn = document.getElementById('evaluate-btn');
+        const evaluateResults = document.getElementById('evaluate-results');
+        
+        const visualizeSection = document.getElementById('visualize-section');
+        const visualizeBtn = document.getElementById('visualize-btn');
+        const visualizeImg = document.getElementById('visualize-img');
+        const visualizeDownload = document.getElementById('visualize-download');
+        // 状态变量
+        let currentDataset = null;
+        let currentRepType = null;
+        let selectedPrepFile = null;
+        let selectedTrueCoords = null;
+        let preprocessTaskId = null;
+        let preprocessInterval = null;
+        let inferenceTaskId = null;
+        let inferenceInterval = null;
+        let currentReconFile = null;
+
+        // ==================== 初始化：加载数据集列表 ====================
+        async function loadDatasets() {
+            try {
+                const resp = await fetch('/datasets');
+                const data = await resp.json();
+                if (data.datasets) {
+                    data.datasets.forEach(name => {
+                        const opt = document.createElement('option');
+                        opt.value = name;
+                        opt.textContent = name;
+                        datasetSelect.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                console.error('加载数据集失败', err);
+            }
+        }
+
+        // ==================== 数据集选择变化 ====================
+        datasetSelect.addEventListener('change', async () => {
+            const dataset = datasetSelect.value;
+            currentDataset = dataset;
+            repSelect.innerHTML = '<option value="">-- 加载中 --</option>';
+            repSelect.disabled = !dataset;
+            cellSelect.innerHTML = '<option value="">-- 请先选重复类型 --</option>';
+            cellSelect.disabled = true;
+            preprocessBtn.disabled = true;
+
+            if (!dataset) return;
+
+            try {
+                const resp = await fetch(`/datasets/${dataset}`);
+                const data = await resp.json();
+                repSelect.innerHTML = '<option value="">-- 请选择 --</option>';
+                if (data.rep_types) {
+                    data.rep_types.forEach(rep => {
+                        const opt = document.createElement('option');
+                        opt.value = rep;
+                        opt.textContent = rep;
+                        repSelect.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                console.error('加载重复类型失败', err);
+            }
+        });
+
+        // ==================== 重复类型选择变化 ====================
+        repSelect.addEventListener('change', async () => {
+            const rep = repSelect.value;
+            currentRepType = rep;
+            cellSelect.innerHTML = '<option value="">-- 加载中 --</option>';
+            cellSelect.disabled = !rep;
+            preprocessBtn.disabled = true;
+
+            if (!rep) return;
+
+            try {
+                const resp = await fetch(`/datasets/${currentDataset}/${rep}`);
+                const data = await resp.json();
+                cellSelect.innerHTML = '<option value="">-- 请选择 --</option>';
+                if (data.cells) {
+                    data.cells.forEach(cell => {
+                        const opt = document.createElement('option');
+                        opt.value = cell;
+                        opt.textContent = cell;
+                        cellSelect.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                console.error('加载细胞列表失败', err);
+            }
+        });
+
+        // ==================== 细胞选择变化 ====================
+        cellSelect.addEventListener('change', () => {
+            preprocessBtn.disabled = !cellSelect.value;
+        });
+
+        // ==================== 预处理按钮 ====================
+        preprocessBtn.addEventListener('click', async () => {
+            if (!currentDataset || !currentRepType || !cellSelect.value) {
+                alert('请先选择数据集、重复类型和细胞');
+                return;
+            }
+
+            const params = new URLSearchParams();
+            params.append('datadir', 'data');
+            params.append('name', currentDataset);
+            params.append('rep_type', currentRepType);
+            params.append('cell_id', cellSelect.value);
+            params.append('chrom', preChrom.value);
+            params.append('start', preStart.value);
+            params.append('end', preEnd.value);
+            params.append('resolution', preResolution.value);
+
+            preprocessBtn.disabled = true;
+            stopPreBtn.style.display = 'inline-block';
+            preprocessProgress.style.display = 'block';
+            preprocessBar.style.width = '0%';
+            preprocessBar.textContent = '0%';
+            preprocessMessage.textContent = '正在提交...';
+            fileListDiv.style.display = 'none';
+
+            try {
+                const resp = await fetch('/preprocess', { method: 'POST', body: params });
+                const data = await resp.json();
+                preprocessTaskId = data.task_id;
+                preprocessInterval = setInterval(pollPreprocessProgress, 1000);
+            } catch (err) {
+                preprocessMessage.textContent = '请求失败: ' + err.message;
+                preprocessBtn.disabled = false;
+                stopPreBtn.style.display = 'none';
+            }
+        });
+
+        // 停止预处理
+        stopPreBtn.addEventListener('click', async () => {
+            if (preprocessTaskId) {
+                try {
+                    await fetch(`/task/${preprocessTaskId}/revoke`, { method: 'POST' });
+                } catch (e) {
+                    console.error('停止任务失败', e);
+                }
+                clearInterval(preprocessInterval);
+                preprocessMessage.textContent = '任务已被用户停止';
+                stopPreBtn.style.display = 'none';
+                preprocessBtn.disabled = false;
+            }
+        });
+
+        // 轮询预处理进度
+        async function pollPreprocessProgress() {
+            try {
+                const resp = await fetch(`/preprocess/${preprocessTaskId}/progress`);
+                if (!resp.ok) throw new Error(`服务器错误: ${resp.status}`);
+                const data = await resp.json();
+
+                if (data.status === 'PROGRESS') {
+                    preprocessBar.style.width = data.percent + '%';
+                    preprocessBar.textContent = data.percent + '%';
+                    preprocessMessage.textContent = data.message || '';
+                } else if (data.status === 'SUCCESS') {
+                    clearInterval(preprocessInterval);
+                    preprocessBar.style.width = '100%';
+                    preprocessBar.textContent = '100%';
+                    preprocessMessage.textContent = '预处理完成！';
+                    stopPreBtn.style.display = 'none';
+                    preprocessBtn.disabled = false;
+                    // 获取文件列表
+                    try {
+                        const resultResp = await fetch(`/preprocess/${preprocessTaskId}/result`);
+                        if (resultResp.ok) {
+                            const resultData = await resultResp.json();
+                            renderFileList(resultData.files);
+                        } else {
+                            preprocessMessage.textContent = '获取文件列表失败';
+                        }
+                    } catch (e) {
+                        preprocessMessage.textContent = '获取文件列表出错: ' + e.message;
+                    }
+                } else if (data.status === 'FAILURE' || data.status === 'FAILED') {
+                    clearInterval(preprocessInterval);
+                    preprocessMessage.textContent = '失败: ' + (data.error || data.message || '未知错误');
+                    stopPreBtn.style.display = 'none';
+                    preprocessBtn.disabled = false;
+                } else if (data.status === 'REVOKED') {
+                    clearInterval(preprocessInterval);
+                    preprocessMessage.textContent = '任务已被停止';
+                    stopPreBtn.style.display = 'none';
+                    preprocessBtn.disabled = false;
+                }
+            } catch (err) {
+                clearInterval(preprocessInterval);
+                preprocessMessage.textContent = '轮询失败: ' + err.message;
+                stopPreBtn.style.display = 'none';
+                preprocessBtn.disabled = false;
+            }
+        }
+
+        // 渲染文件列表
+        function renderFileList(files) {
+            fileList.innerHTML = '';
+            if (!files || files.length === 0) {
+                fileList.innerHTML = '<li>未生成任何文件</li>';
+                fileListDiv.style.display = 'block';
+                return;
+            }
+            files.forEach((filePath, index) => {
+                const li = document.createElement('li');
+                const fileName = filePath.split('/').pop();
+                li.textContent = fileName;
+                li.title = filePath;
+                // 推导真实坐标路径
+                const trueCoordsPath = filePath.replace('hic_pairs', 'coords').replace('_hic_pairs.txt', '_true_coords.npy');
+                li.dataset.trueCoords = trueCoordsPath;
+                li.addEventListener('click', () => {
+                    document.querySelectorAll('#file-list li').forEach(el => el.classList.remove('selected'));
+                    li.classList.add('selected');
+                    selectedPrepFile = filePath;
+                    selectedTrueCoords = li.dataset.trueCoords;
+                    // 解析文件名并填入推理参数
+                    const parts = fileName.split('_');
+                    if (parts.length >= 2) {
+                        infChrom.value = parts[0];
+                        infResolution.value = parseInt(parts[1]) || 20000;
+                    }
+                    reconstructBtn.disabled = false;
+                    reconstructSection.style.display = 'block';
+                });
+                fileList.appendChild(li);
+                // 自动选中第一个文件
+                if (index === 0) {
+                    li.click();
+                }
+            });
+            fileListDiv.style.display = 'block';
+        }
+
+        // ==================== 推理按钮 ====================
+        reconstructBtn.addEventListener('click', async () => {
+            if (!selectedPrepFile) {
+                alert('请先选择一个预处理文件');
+                return;
+            }
+
+            const params = new URLSearchParams();
+            params.append('input_file_path', selectedPrepFile);
+            params.append('model', modelSelect.value);
+            params.append('resolution', infResolution.value);
+            params.append('chr_name', infChrom.value);
+            params.append('assembly', assemblySelect.value);
+
+            inferenceProgress.style.display = 'block';
+            inferenceBar.style.width = '0%';
+            inferenceBar.textContent = '0%';
+            inferenceMessage.textContent = '正在提交...';
+            statsPanel.style.display = 'none';
+            downloadSection.style.display = 'none';
+            evaluateSection.style.display = 'none';
+            reconstructBtn.disabled = true;
+
+            try {
+                const resp = await fetch('/reconstruct', { method: 'POST', body: params });
+                if (!resp.ok) {
+                    const errorData = await resp.json().catch(() => ({}));
+                    inferenceMessage.textContent = '提交失败: ' + (errorData.error || `服务器错误 ${resp.status}`);
+                    reconstructBtn.disabled = false;
+                    return;
+                }
+                const data = await resp.json();
+                if (!data.task_id) {
+                    inferenceMessage.textContent = '提交失败: 未获取到任务ID';
+                    reconstructBtn.disabled = false;
+                    return;
+                }
+                inferenceTaskId = data.task_id;
+
+                if (data.stats) {
+                    const st = data.stats;
+                    statsPanel.innerHTML = `
+                        <table>
+                            <tr><td>文件名</td><td>${st.file_name}</td></tr>
+                            <tr><td>总接触数</td><td>${st.total_lines}</td></tr>
+                            <tr><td>坐标范围</td><td>${st.positions.min} - ${st.positions.max}</td></tr>
+                        </table>`;
+                    statsPanel.style.display = 'block';
+                }
+
+                inferenceInterval = setInterval(pollInferenceProgress, 1000);
+            } catch (err) {
+                inferenceMessage.textContent = '请求失败: ' + err.message;
+                reconstructBtn.disabled = false;
+            }
+        });
+
+        // 轮询推理进度
+        async function pollInferenceProgress() {
+            try {
+                const resp = await fetch(`/task/${inferenceTaskId}/progress`);
+                const data = await resp.json();
+                if (data.status === 'PROGRESS') {
+                    inferenceBar.style.width = data.percent + '%';
+                    inferenceBar.textContent = data.percent + '%';
+                    inferenceMessage.textContent = data.message || '';
+                } else if (data.status === 'SUCCESS') {
+                    clearInterval(inferenceInterval);
+                    inferenceBar.style.width = '100%';
+                    inferenceBar.textContent = '100%';
+                    inferenceMessage.textContent = '任务完成！';
+                    downloadLink.href = `/task/${inferenceTaskId}/result`;
+                    downloadSection.style.display = 'block';
+                    reconstructBtn.disabled = false;
+                    if (data.output_file) {
+                        currentReconFile = data.output_file;
+                        evaluateSection.style.display = 'block';  // 显示评分区域
+                        visualizeSection.style.display = 'block';   // 显示图区
+                    }
+                } else if (data.status === 'FAILURE') {
+                    clearInterval(inferenceInterval);
+                    inferenceMessage.textContent = '失败: ' + (data.error || '未知错误');
+                    reconstructBtn.disabled = false;
+                }
+            } catch (err) {
+                clearInterval(inferenceInterval);
+                inferenceMessage.textContent = '轮询失败: ' + err.message;
+                reconstructBtn.disabled = false;
+            }
+        }
+        visualizeBtn.addEventListener('click', () => {
+            if (!currentReconFile) return;
+            let url = `/visualize?recon_file=${encodeURIComponent(currentReconFile)}`;
+            if (selectedTrueCoords) {
+                url += `&true_coords_file=${encodeURIComponent(selectedTrueCoords)}`;
+            }
+            visualizeImg.src = url;
+            visualizeImg.style.display = 'block';
+            visualizeDownload.href = url;
+            visualizeDownload.style.display = 'inline-block';
+        });
+        // ==================== 评估按钮 ====================
+        evaluateBtn.addEventListener('click', async () => {
+            if (!currentReconFile || !selectedTrueCoords) {
+                alert('缺少重建文件或真实坐标文件');
+                return;
+            }
+            const params = new URLSearchParams({
+                recon_file: currentReconFile,
+                true_coords_file: selectedTrueCoords
+            });
+            evaluateResults.innerHTML = '正在计算...';
+            try {
+                const resp = await fetch('/evaluate?' + params.toString());
+                if (!resp.ok) {
+                    evaluateResults.innerHTML = '计算失败: ' + resp.status;
+                    return;
+                }
+                const data = await resp.json();
+                let html = '<table>';
+                for (const [key, val] of Object.entries(data.metrics)) {
+                    html += `<tr><td>${key}</td><td>${Number(val).toFixed(4)}</td></tr>`;
+                }
+                html += '</table>';
+                if (data.plot) {
+                    html += `<img src="data:image/png;base64,${data.plot}" style="max-width:100%;">`;
+                }
+                evaluateResults.innerHTML = html;
+            } catch (err) {
+                evaluateResults.innerHTML = '请求失败: ' + err.message;
+            }
+        });
+
+        // ==================== 初始化 ====================
+        loadDatasets();
+    </script>
+</body>
+</html>

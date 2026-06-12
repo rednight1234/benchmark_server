@@ -1,0 +1,24 @@
+模型扩展方式
+以模型名称命名的py文件中,实现以下方法:
+```python
+def run(info: dict, progress_callback) -> dict:
+    """
+    参数说明:
+        info:{
+            chr_name:  目标染色体chrA
+            assembly:    hg19或hg38
+            input_file:  输入接触数据文件的绝对路径
+            resolution:  目标分辨率 (bp)
+            work_dir:    该任务专用的临时工作目录，所有中间文件都应放在这里
+            true_coords_file: 目标文件的路径
+        }
+        progress_callback:  回调函数，签名为 callback(percent, message)
+                                percent 是 0-100 的整数, message 是描述字符串
+    返回说明:
+        dict: {
+            'status': 'success' 或 'error',
+            'message': '简短描述',
+            'output_file': 坐标文件的绝对路径 ,
+        }
+    """
+```

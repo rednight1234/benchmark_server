@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}任务工作台{% endblock %}
+{% block content %}
+<h1>📋 任务工作台</h1>
+
+<div class="filters">
+    <select id="status-filter">
+        <option value="">全部状态</option>
+        <option value="PENDING">排队中</option>
+        <option value="PROGRESS">运行中</option>
+        <option value="SUCCESS">已完成</option>
+        <option value="FAILURE">失败</option>
+    </select>
+    <button id="refresh-btn">刷新列表</button>
+    <button id="delete-selected-btn" disabled>删除选中</button>
+</div>
+
+<table id="task-table">
+    <thead>
+        <tr>
+            <th><input type="checkbox" id="select-all"></th>
+            <th>任务ID</th>
+            <th>用户</th>
+            <th>模型</th>
+            <th>类型</th>
+            <th>参数</th>
+            <th>状态</th>
+            <th>提交时间</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody id="task-list-body">
+        <!-- 动态填充 -->
+    </tbody>
+</table>
+
+<div id="task-detail-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <div id="task-detail-content"></div>
+    </div>
+</div>
+
+<script src="/static/js/tasks.js"></script>
+{% endblock %}

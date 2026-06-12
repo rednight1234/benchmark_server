@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}新建任务{% endblock %}
+{% block content %}
+<h1>🚀 新建重建任务</h1>
+
+<!-- 步骤1: 选择数据并预处理 -->
+<div class="section">
+    <h3>1. 选择数据并预处理</h3>
+    <div class="form-row">
+        <label>数据集：</label>
+        <select id="dataset-select"><option value="">-- 请选择 --</option></select>
+    </div>
+    <div class="form-row">
+        <label>重复类型：</label>
+        <select id="rep-select" disabled><option value="">-- 请先选数据集 --</option></select>
+    </div>
+    <div class="form-row">
+        <label>细胞ID：</label>
+        <select id="cell-select" disabled><option value="">-- 请先选重复类型 --</option></select>
+    </div>
+
+    <div class="form-row">
+        <label>染色体：</label>
+        <input type="text" id="pre-chrom" value="chr19" size="8">
+        <label>起始(bp)：</label>
+        <input type="number" id="pre-start" value="0" size="12">
+        <label>结束(-1=全长)：</label>
+        <input type="number" id="pre-end" value="-1" size="12">
+        <label>分辨率(bp)：</label>
+        <input type="number" id="pre-resolution" value="20000" size="12">
+    </div>
+
+    <button id="preprocess-btn" disabled>开始预处理</button>
+    <button id="stop-preprocess-btn" style="display:none;">停止</button>
+
+    <div id="preprocess-progress" class="progress-container" style="display:none;">
+        <div class="progress-bar" id="preprocess-bar">0%</div>
+        <p id="preprocess-message"></p>
+    </div>
+
+    <div id="preprocess-files" style="display:none;">
+        <h4>生成的文件</h4>
+        <ul id="file-list"></ul>
+        <input type="hidden" id="hidden-true-coords" value="">
+    </div>
+</div>
+
+<!-- 步骤2: 推理 -->
+<div class="section" id="inference-section" style="display:none;">
+    <h3>2. 推理</h3>
+    <div class="form-row">
+        <label>模型：</label>
+        <div id="model-checkboxes">
+            <!-- 由 JS 动态填充 -->
+        </div>
+    </div>
+    <div class="form-row">
+        <label>分辨率(bp)：</label>
+        <input type="number" id="inf-resolution" value="20000">
+    </div>
+    <div class="form-row">
+        <label>染色体：</label>
+        <input type="text" id="inf-chrom" value="chr19">
+    </div>
+    <div class="form-row">
+        <label>基因组：</label>
+        <select id="assembly-select">
+            <option value="hg19">hg19</option>
+            <option value="hg38">hg38</option>
+        </select>
+    </div>
+    <button id="reconstruct-btn" disabled>提交推理任务</button>
+
+    <div id="inference-progress" class="progress-container" style="display:none;">
+        <div class="progress-bar" id="inference-bar">0%</div>
+        <p id="inference-message"></p>
+    </div>
+    <div id="inference-result" style="display:none;">
+        <p>任务已完成！</p>
+        <a id="download-link" href="#">📥 下载结果文件</a>
+    </div>
+</div>
+<script src="/static/js/new_task.js"></script>
+{% endblock %}

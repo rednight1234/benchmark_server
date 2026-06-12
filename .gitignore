@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# 数据与结果
+usr_data/
+usr_results/
+processed_data/
+logs/
+*.log
+
+# 环境与工具
+redis-stable/
+*.pid
+nohup.out
+celery_worker.log
+
+# IDE
+.vscode/
+.idea/

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}3D Genome Web Service{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/tasks" class="nav-link">📋 任务工作台</a>
+        <a href="/datasets" class="nav-link">📊 数据集浏览</a>
+        <a href="/new-task" class="nav-link">🚀 新建任务</a>
+        <a href="/evaluate">📊 上传评估</a>
+        <div class="user-info">
+            <input type="text" id="username-input" placeholder="你的用户名" style="padding:4px;">
+            <button id="save-username">保存</button>
+        </div>
+    </nav>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+    <script>
+        // 用户名管理
+        const usernameInput = document.getElementById('username-input');
+        const saveBtn = document.getElementById('save-username');
+        // 从 localStorage 加载
+        const savedUser = localStorage.getItem('username');
+        if (savedUser) usernameInput.value = savedUser;
+        saveBtn.addEventListener('click', () => {
+            localStorage.setItem('username', usernameInput.value);
+            alert('用户名已保存');
+        });
+    </script>
+</body>
+</html>

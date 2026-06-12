@@ -1,0 +1,14 @@
+数据扩展方式
+将含有该结构的文件夹放入此文件夹即可:
+数据集名称
+-dataset_info.json("name": 数据集名称,应当与文件夹名称一致,
+  "species": 物种,
+  "assembly": "hg19"/"hg38",
+  "rep_type": ["original", "rep1", "rep2",...], 若没有其他类型则只保留original即可
+  "available_cells": ["01", "02", "03"...], 数据集的细胞id列表
+  "description": 关于此数据集的描述
+  )
+-rep_type
+    -cell_id
+        -......坐标文件(3dg.txt或pdb) 
+        -......hic文件(con.txt或pairs.txt)

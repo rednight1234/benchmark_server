@@ -1,0 +1,6 @@
+{
+  "name": "GM12878",
+  "species": "human",
+  "assembly": "hg19",
+  "description": "GM12878细胞的Dip-C数据集, hg19, 总共16个细胞, orginal+2rep, 细胞编号01~17, 08不存在, 坐标分辨率为20kb"
+}
